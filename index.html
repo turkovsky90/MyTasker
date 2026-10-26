@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="tasks">
+<meta name="mobile-web-app-capable" content="yes">
 <title>tasks</title>
 <style>
 :root{
@@ -4601,9 +4605,81 @@ function wireUI(){
   try { document.execCommand('styleWithCSS', false, false); } catch(_){}
 }
 
+/* ─── PWA setup (single-file) ─── */
+function generateIcon(size, opts){
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if(!ctx) return '';
+    const pad = (opts && opts.maskable) ? Math.round(size * 0.10) : 0; // 10% safe zone for maskable
+    const inner = size - pad * 2;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#79c0ff';
+    ctx.font = 'bold ' + Math.floor(inner * 0.58) + 'px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('>', size/2, size * 0.53);
+    return canvas.toDataURL('image/png');
+  } catch(_){
+    return '';
+  }
+}
+
+function setupPWA(){
+  try {
+    const icon192 = generateIcon(192);
+    const icon512 = generateIcon(512);
+    const icon512Maskable = generateIcon(512, { maskable: true });
+    const apple180 = generateIcon(180);
+    if(!icon192 || !icon512) return;
+
+    const startUrl = location.origin + location.pathname;
+    const manifest = {
+      name: 'tasks',
+      short_name: 'tasks',
+      description: 'ascii todo',
+      start_url: startUrl,
+      scope: startUrl,
+      display: 'standalone',
+      orientation: 'any',
+      background_color: '#000000',
+      theme_color: '#000000',
+      icons: [
+        { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: icon512Maskable, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+      ]
+    };
+
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    const url = URL.createObjectURL(blob);
+
+    let link = document.querySelector('link[rel="manifest"]');
+    if(!link){
+      link = document.createElement('link');
+      link.rel = 'manifest';
+      document.head.appendChild(link);
+    }
+    link.href = url;
+
+    let ati = document.querySelector('link[rel="apple-touch-icon"]');
+    if(!ati){
+      ati = document.createElement('link');
+      ati.rel = 'apple-touch-icon';
+      ati.sizes = '180x180';
+      document.head.appendChild(ati);
+    }
+    ati.href = apple180;
+  } catch(_){}
+}
+
 (async function boot(){
   try { await Storage.init(); } catch(_){ Storage.driver='memory'; Storage.ready=true; }
   try { await load(); } catch(_){}
+  setupPWA();
   wireUI();
   render();
   updateSyncIcon();
